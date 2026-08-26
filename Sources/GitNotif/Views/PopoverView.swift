@@ -9,7 +9,11 @@ struct PopoverView: View {
             Divider()
             content
         }
-        .frame(width: 380, height: contentHeight)
+        // alignment: .top — the default centers content, so mid-transition
+        // overflow spills out the TOP of the window; top-aligned it clips at
+        // the bottom instead.
+        .frame(width: 380, height: contentHeight, alignment: .top)
+        .clipped()
         .animation(.smooth(duration: 0.22), value: contentHeight)
         // Height changes anchor at the window's bottom edge by default,
         // sliding it under the menu bar; this pins the top edge instead.
