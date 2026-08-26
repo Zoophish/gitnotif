@@ -29,8 +29,12 @@ struct NotificationRow: View {
                     HStack(spacing: 4) {
                         Text(notification.reasonLabel)
                         Text("·")
-                        Text(notification.updatedAt, format: .relative(presentation: .named))
-                            .help(notification.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                        // TimelineView re-renders once a minute: fresh without
+                        // the distraction of a per-second live counter.
+                        TimelineView(.everyMinute) { _ in
+                            Text(notification.updatedAt, format: .relative(presentation: .named))
+                        }
+                        .help(notification.updatedAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
