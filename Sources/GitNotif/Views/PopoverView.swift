@@ -9,10 +9,39 @@ struct PopoverView: View {
             Divider()
             content
         }
-        // MenuBarExtra's .window style does not reliably track content height
-        // changes (live or across opens) — every variable-height scheme has
-        // glitched. Constant size, always; sparse states center themselves.
-        .frame(width: 380, height: 420)
+        .frame(width: 380, height: contentHeight)
+        .animation(.smooth(duration: 0.22), value: contentHeight)
+        // Height changes anchor at the window's bottom edge by default,
+        // sliding it under the menu bar; this pins the top edge instead.
+        .background(WindowTopPin())
+    }
+
+    private var contentHeight: CGFloat {
+        switch store.state {
+        case .needsToken: return 330
+        case .loading, .error: return 200
+        case .loaded:
+            if store.notifications.isEmpty { return 170 }
+            let header: CGFloat = 43
+            let list = store.grouped.reduce(CGFloat(0)) { total, group in
+                total + 29 + group.items.reduce(0) { $0 + Self.rowHeight($1) }
+            }
+            return min(header + 1 + list + 10, 480)
+        }
+    }
+
+    /// Exact row height: measure whether the title wraps to a second line.
+    private static func rowHeight(_ notification: GHNotification) -> CGFloat {
+        // width - content padding (14×2) - icon column (20) - icon spacing (9)
+        let textWidth: CGFloat = 380 - 28 - 20 - 9
+        let bounds = (notification.subject.title as NSString).boundingRect(
+            with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin],
+            attributes: [.font: NSFont.systemFont(ofSize: 12.5)]
+        )
+        let lines = min(2, max(1, Int(ceil(bounds.height / 16))))
+        // vertical padding (6×2) + title lines + 2 spacing + meta line (14)
+        return 12 + CGFloat(lines) * 16 + 2 + 14
     }
 
     private var header: some View {
