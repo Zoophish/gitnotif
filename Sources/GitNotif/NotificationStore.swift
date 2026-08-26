@@ -201,6 +201,19 @@ final class NotificationStore {
         }
     }
 
+    /// Dismisses everything currently shown. GitHub has no bulk "done"
+    /// endpoint, so threads are marked done one by one in the background.
+    func markAllDone() {
+        let items = notifications
+        notifications = []
+        keptRead = [:]
+        Task { [client] in
+            for item in items {
+                try? await client?.markAsDone(threadID: item.id)
+            }
+        }
+    }
+
     func markAllRead() {
         for index in notifications.indices where notifications[index].unread {
             notifications[index].unread = false

@@ -30,11 +30,11 @@ struct PopoverView: View {
             Spacer()
             // Stable trailing cluster: buttons never appear/disappear (that
             // shifts the layout); they disable instead.
-            headerButton("checklist.checked", help: "Mark all as read") {
-                store.markAllRead()
+            headerButton("checklist.checked", help: "Mark all as done") {
+                store.markAllDone()
             }
-            .disabled(store.unreadCount == 0)
-            .opacity(store.unreadCount == 0 ? 0.4 : 1)
+            .disabled(store.notifications.isEmpty)
+            .opacity(store.notifications.isEmpty ? 0.4 : 1)
             headerButton("arrow.clockwise", help: "Refresh") {
                 store.refresh()
             }
