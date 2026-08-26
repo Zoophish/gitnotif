@@ -30,8 +30,8 @@ struct PopoverView: View {
             Spacer()
             // Stable trailing cluster: buttons never appear/disappear (that
             // shifts the layout); they disable instead.
-            headerButton("checklist.checked", help: "Mark all as done") {
-                store.markAllDone()
+            headerButton("checklist.checked", help: "Clear all") {
+                store.clearAll()
             }
             .disabled(store.notifications.isEmpty)
             .opacity(store.notifications.isEmpty ? 0.4 : 1)
@@ -142,9 +142,9 @@ struct PopoverView: View {
                             .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button {
-                                    store.markDone(item)
+                                    store.clear(item)
                                 } label: {
-                                    Label("Done", systemImage: "checkmark")
+                                    Label("Clear", systemImage: "checkmark")
                                 }
                                 .tint(.green)
                             }

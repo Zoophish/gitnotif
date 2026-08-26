@@ -182,11 +182,12 @@ final class NotificationStore {
         markRead(notification)
     }
 
-    /// Done is the only action that dismisses a row.
-    func markDone(_ notification: GHNotification) {
+    /// Clear = read + done on GitHub. The only action that dismisses a row.
+    func clear(_ notification: GHNotification) {
         notifications.removeAll { $0.id == notification.id }
         keptRead.removeValue(forKey: notification.id)
         Task { [client] in
+            try? await client?.markAsRead(threadID: notification.id)
             try? await client?.markAsDone(threadID: notification.id)
         }
     }
@@ -201,14 +202,15 @@ final class NotificationStore {
         }
     }
 
-    /// Dismisses everything currently shown. GitHub has no bulk "done"
-    /// endpoint, so threads are marked done one by one in the background.
-    func markAllDone() {
+    /// Clears everything currently shown. GitHub has no bulk "done" endpoint,
+    /// so threads are cleared one by one in the background.
+    func clearAll() {
         let items = notifications
         notifications = []
         keptRead = [:]
         Task { [client] in
             for item in items {
+                try? await client?.markAsRead(threadID: item.id)
                 try? await client?.markAsDone(threadID: item.id)
             }
         }

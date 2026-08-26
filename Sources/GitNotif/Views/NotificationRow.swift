@@ -63,7 +63,7 @@ struct NotificationRow: View {
         // with the title; everything else lives in swipes + context menu.
         .overlay(alignment: .bottomTrailing) {
             if hovering {
-                DoneButton { store.markDone(notification) }
+                DoneButton { store.clear(notification) }
                     .padding(.trailing, 14)
                     .padding(.bottom, 7)
             }
@@ -74,7 +74,7 @@ struct NotificationRow: View {
                 store.open(notification)
             }
             Divider()
-            Button("Mark as Done") { store.markDone(notification) }
+            Button("Clear") { store.clear(notification) }
             Button("Mark as Read") { store.markRead(notification) }
         }
         .onHover { hovering = $0 }
@@ -93,7 +93,7 @@ struct NotificationRow: View {
                     .background(Circle().fill(hovering ? AnyShapeStyle(.blue) : AnyShapeStyle(.quaternary)))
             }
             .buttonStyle(.plain)
-            .help("Done")
+            .help("Clear")
             .onHover { hovering = $0 }
         }
     }
