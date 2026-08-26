@@ -117,7 +117,6 @@ struct PopoverView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.vertical, 48)
         case .error(let message):
             VStack(spacing: 10) {
                 Image(systemName: "exclamationmark.triangle")
@@ -158,7 +157,6 @@ struct PopoverView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 48)
     }
 
     private var notificationList: some View {
