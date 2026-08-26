@@ -20,7 +20,7 @@ struct GHNotification: Identifiable, Decodable, Sendable, Equatable {
     }
 
     let id: String
-    let unread: Bool
+    var unread: Bool  // mutated locally when read-in-place
     let reason: String
     let updatedAt: Date
     let subject: Subject

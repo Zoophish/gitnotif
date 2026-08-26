@@ -17,8 +17,22 @@ final class NotificationStore {
     private(set) var login: String?
     private(set) var lastRefreshed: Date?
 
-    /// PR open/merged/closed state, fetched lazily per notification id.
-    private(set) var prStates: [String: PRState] = [:]
+    /// PR open/merged/closed state, fetched lazily. Keyed by id + updatedAt:
+    /// a merge updates the notification (same id, new timestamp), which must
+    /// invalidate the cached state or merged PRs stay green.
+    private var prStates: [String: PRState] = [:]
+
+    /// Read-but-not-done items are kept visible (dimmed) until marked done,
+    /// even though unread-only polls no longer return them.
+    private var keptRead: [String: GHNotification] = [:]
+
+    func prState(for notification: GHNotification) -> PRState? {
+        prStates[Self.stateKey(notification)]
+    }
+
+    private static func stateKey(_ n: GHNotification) -> String {
+        "\(n.id):\(n.updatedAt.timeIntervalSince1970)"
+    }
 
     /// Include read notifications (off by default — popping the todo list
     /// down to empty is the point).
@@ -72,6 +86,8 @@ final class NotificationStore {
         client = nil
         Keychain.deleteToken()
         notifications = []
+        keptRead = [:]
+        prStates = [:]
         login = nil
         state = .needsToken
     }
@@ -107,7 +123,12 @@ final class NotificationStore {
                             banners.post(item)
                         }
                     }
-                    notifications = fresh.sorted { $0.updatedAt > $1.updatedAt }
+                    // Keep read-but-not-done items in the list; a fresh copy
+                    // of the same thread (e.g. with showRead on) wins.
+                    let freshIds = Set(fresh.map(\.id))
+                    keptRead = keptRead.filter { !freshIds.contains($0.key) }
+                    notifications = (fresh + keptRead.values)
+                        .sorted { $0.updatedAt > $1.updatedAt }
                     enrichPRStates()
                     NSLog("GitNotif: poll 200 — %d notifications, next in %.0fs", fresh.count, result.pollInterval)
                 } else {
@@ -136,51 +157,57 @@ final class NotificationStore {
     /// Fetch open/merged/closed for PR notifications we haven't resolved yet,
     /// so rows can use GitHub's state colors.
     private func enrichPRStates() {
-        // Drop states for notifications no longer shown.
-        let ids = Set(notifications.map(\.id))
-        prStates = prStates.filter { ids.contains($0.key) }
+        // Drop states for notifications no longer shown (or superseded by a
+        // newer update of the same thread).
+        let keys = Set(notifications.map(Self.stateKey))
+        prStates = prStates.filter { keys.contains($0.key) }
 
         for item in notifications
         where item.subject.type == "PullRequest"
-            && prStates[item.id] == nil
+            && prStates[Self.stateKey(item)] == nil
             && item.subject.url != nil
         {
-            Task { [client, url = item.subject.url!, id = item.id] in
+            Task { [client, url = item.subject.url!, key = Self.stateKey(item)] in
                 guard let prState = try? await client?.fetchPRState(apiURL: url) else { return }
-                self.prStates[id] = prState
+                self.prStates[key] = prState
             }
         }
     }
 
     // MARK: - Actions
 
+    /// Opening reads the thread but keeps it (dimmed) until marked done.
     func open(_ notification: GHNotification) {
         NSWorkspace.shared.open(notification.webURL)
-        markDone(notification)
+        markRead(notification)
     }
 
+    /// Done is the only action that dismisses a row.
     func markDone(_ notification: GHNotification) {
-        remove(notification)
+        notifications.removeAll { $0.id == notification.id }
+        keptRead.removeValue(forKey: notification.id)
         Task { [client] in
             try? await client?.markAsDone(threadID: notification.id)
         }
     }
 
     func markRead(_ notification: GHNotification) {
-        remove(notification)
+        if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
+            notifications[index].unread = false
+            keptRead[notification.id] = notifications[index]
+        }
         Task { [client] in
             try? await client?.markAsRead(threadID: notification.id)
         }
     }
 
     func markAllRead() {
-        notifications = []
+        for index in notifications.indices where notifications[index].unread {
+            notifications[index].unread = false
+            keptRead[notifications[index].id] = notifications[index]
+        }
         Task { [client] in
             try? await client?.markAllAsRead()
         }
-    }
-
-    private func remove(_ notification: GHNotification) {
-        notifications.removeAll { $0.id == notification.id }
     }
 }

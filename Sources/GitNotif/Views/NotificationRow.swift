@@ -97,7 +97,7 @@ struct NotificationRow: View {
         switch notification.subject.type {
         case "PullRequest":
             // GitHub's PR state colors, resolved lazily by the store.
-            switch store.prStates[notification.id] {
+            switch store.prState(for: notification) {
             case .merged: .purple
             case .closed: .red
             case .draft: .secondary
