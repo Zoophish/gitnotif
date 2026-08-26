@@ -5,8 +5,14 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // A lighter glass layer for the header segment, like the layered
+            // materials in system notification banners; the material edge
+            // separates it from the list without a hard 2D divider line.
             header
-            Divider()
+                .background(.ultraThinMaterial)
+                .overlay(alignment: .bottom) {
+                    Divider().opacity(0.5)
+                }
             content
         }
         // alignment: .top — the default centers content, so mid-transition

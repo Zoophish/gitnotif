@@ -9,7 +9,18 @@ final class BannerCenter: NSObject, UNUserNotificationCenterDelegate {
         super.init()
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            NSLog("GitNotif: banner auth granted=%d error=%@", granted, String(describing: error))
+        }
+        // End-to-end banner test: GITNOTIF_TEST_BANNER=1 posts one at launch.
+        if ProcessInfo.processInfo.environment["GITNOTIF_TEST_BANNER"] != nil {
+            let content = UNMutableNotificationContent()
+            content.title = "GitNotif"
+            content.body = "Test banner — notifications are working."
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: "test", content: content, trigger: nil)
+            )
+        }
     }
 
     func post(_ notification: GHNotification) {
