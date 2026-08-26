@@ -31,9 +31,10 @@ struct GitHubClient: Sendable {
         return req
     }
 
-    /// Fetch all unread notifications, following pagination.
-    func pollNotifications(lastModified: String?) async throws -> PollResult {
-        var req = request("/notifications?per_page=50")
+    /// Fetch notifications, following pagination. `all` includes read ones
+    /// (capped to a few pages — the full read history is unbounded).
+    func pollNotifications(lastModified: String?, all: Bool = false) async throws -> PollResult {
+        var req = request("/notifications?per_page=50\(all ? "&all=true" : "")")
         if let lastModified {
             req.setValue(lastModified, forHTTPHeaderField: "If-Modified-Since")
         }
@@ -53,21 +54,24 @@ struct GitHubClient: Sendable {
             throw GitHubError.http(http.statusCode)
         }
 
-        var all = try JSONDecoder.github.decode([GHNotification].self, from: data)
+        var items = try JSONDecoder.github.decode([GHNotification].self, from: data)
 
         // Follow pagination if there's more than one page.
+        let maxPages = all ? 3 : 10
+        var pages = 1
         var next = nextPageURL(from: http)
-        while let url = next {
+        while let url = next, pages < maxPages {
+            pages += 1
             var pageReq = request("/notifications")
             pageReq.url = url
             let (pageData, pageResp) = try await URLSession.shared.data(for: pageReq)
             guard let pageHTTP = pageResp as? HTTPURLResponse, pageHTTP.statusCode == 200 else { break }
-            all += try JSONDecoder.github.decode([GHNotification].self, from: pageData)
+            items += try JSONDecoder.github.decode([GHNotification].self, from: pageData)
             next = nextPageURL(from: pageHTTP)
         }
 
         return PollResult(
-            notifications: all,
+            notifications: items,
             pollInterval: interval,
             lastModified: http.value(forHTTPHeaderField: "Last-Modified")
         )
@@ -83,6 +87,27 @@ struct GitHubClient: Sendable {
             return URL(string: String(part[part.index(after: start)..<end]))
         }
         return nil
+    }
+
+    /// Open / draft / merged / closed, for coloring PR notifications.
+    func fetchPRState(apiURL: String) async throws -> PRState {
+        guard let url = URL(string: apiURL) else { throw GitHubError.http(0) }
+        var req = request("/")
+        req.url = url
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+            throw GitHubError.http((resp as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        struct PR: Decodable {
+            let state: String
+            let merged: Bool
+            let draft: Bool
+        }
+        let pr = try JSONDecoder.github.decode(PR.self, from: data)
+        if pr.merged { return .merged }
+        if pr.state == "closed" { return .closed }
+        if pr.draft { return .draft }
+        return .open
     }
 
     /// Validate a token by fetching the authenticated user's login.

@@ -44,6 +44,7 @@ struct NotificationRow: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
+            .opacity(notification.unread ? 1 : 0.5)
         }
         .buttonStyle(.plain)
         // Control Center metrics: 8pt gutter, 10pt radius.
@@ -94,7 +95,14 @@ struct NotificationRow: View {
 
     private var iconColor: Color {
         switch notification.subject.type {
-        case "PullRequest": .green
+        case "PullRequest":
+            // GitHub's PR state colors, resolved lazily by the store.
+            switch store.prStates[notification.id] {
+            case .merged: .purple
+            case .closed: .red
+            case .draft: .secondary
+            case .open, nil: .green
+            }
         case "Issue": .orange
         case "Release": .blue
         case "Discussion": .purple

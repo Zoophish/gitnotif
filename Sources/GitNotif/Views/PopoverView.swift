@@ -44,6 +44,8 @@ struct PopoverView: View {
                 }
                 Link("Open GitHub notifications", destination: URL(string: "https://github.com/notifications")!)
                 Divider()
+                Toggle("Show read notifications", isOn: $store.showRead)
+                Divider()
                 Button("Sign out") { store.signOut() }
                 Button("Quit GitNotif") { NSApp.terminate(nil) }
             } label: {

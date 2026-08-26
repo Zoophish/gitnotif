@@ -17,7 +17,16 @@ final class NotificationStore {
     private(set) var login: String?
     private(set) var lastRefreshed: Date?
 
-    var unreadCount: Int { notifications.count }
+    /// PR open/merged/closed state, fetched lazily per notification id.
+    private(set) var prStates: [String: PRState] = [:]
+
+    /// Include read notifications (off by default — popping the todo list
+    /// down to empty is the point).
+    var showRead = false {
+        didSet { if showRead != oldValue { refresh() } }
+    }
+
+    var unreadCount: Int { notifications.count { $0.unread } }
 
     /// Notifications grouped by repository, repos ordered by most recent activity.
     var grouped: [(repo: String, repoURL: URL, items: [GHNotification])] {
@@ -83,17 +92,23 @@ final class NotificationStore {
         }
         while !Task.isCancelled {
             do {
-                let result = try await client.pollNotifications(lastModified: lastModified)
+                let result = try await client.pollNotifications(
+                    lastModified: lastModified,
+                    all: showRead
+                )
                 if let fresh = result.notifications {
                     // Banner anything new — but not on the first fetch after
                     // launch, which would replay the whole backlog.
                     if lastRefreshed != nil {
                         let known = Set(notifications.map(\.id))
-                        for item in fresh where !known.contains(item.id) {
+                        // unread-only: flipping "show read" on must not banner
+                        // the whole backlog of read items.
+                        for item in fresh where !known.contains(item.id) && item.unread {
                             banners.post(item)
                         }
                     }
                     notifications = fresh.sorted { $0.updatedAt > $1.updatedAt }
+                    enrichPRStates()
                     NSLog("GitNotif: poll 200 — %d notifications, next in %.0fs", fresh.count, result.pollInterval)
                 } else {
                     NSLog("GitNotif: poll 304 — unchanged, next in %.0fs", result.pollInterval)
@@ -115,6 +130,25 @@ final class NotificationStore {
                 state = .error("Network error — retrying…")
             }
             try? await Task.sleep(for: .seconds(pollInterval))
+        }
+    }
+
+    /// Fetch open/merged/closed for PR notifications we haven't resolved yet,
+    /// so rows can use GitHub's state colors.
+    private func enrichPRStates() {
+        // Drop states for notifications no longer shown.
+        let ids = Set(notifications.map(\.id))
+        prStates = prStates.filter { ids.contains($0.key) }
+
+        for item in notifications
+        where item.subject.type == "PullRequest"
+            && prStates[item.id] == nil
+            && item.subject.url != nil
+        {
+            Task { [client, url = item.subject.url!, id = item.id] in
+                guard let prState = try? await client?.fetchPRState(apiURL: url) else { return }
+                self.prStates[id] = prState
+            }
         }
     }
 

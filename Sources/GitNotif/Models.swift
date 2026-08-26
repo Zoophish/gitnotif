@@ -68,6 +68,10 @@ struct GHNotification: Identifiable, Decodable, Sendable, Equatable {
     }
 }
 
+enum PRState: Sendable {
+    case open, draft, merged, closed
+}
+
 extension JSONDecoder {
     static let github: JSONDecoder = {
         let d = JSONDecoder()
