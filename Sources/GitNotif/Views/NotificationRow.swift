@@ -29,9 +29,7 @@ struct NotificationRow: View {
                     HStack(spacing: 4) {
                         Text(notification.reasonLabel)
                         Text("·")
-                        // style: .relative self-updates (ticks live), unlike
-                        // format: .relative which is frozen at render time.
-                        Text(notification.updatedAt, style: .relative)
+                        Text(notification.updatedAt, format: .relative(presentation: .named))
                             .help(notification.updatedAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .font(.system(size: 11))
