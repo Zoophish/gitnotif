@@ -4,6 +4,8 @@ A tiny, fast, native macOS menu bar app for GitHub notifications.
 
 ![requires macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)
 
+![GitNotif](docs/screenshot.png)
+
 ## Features
 
 - Live unread count in the menu bar

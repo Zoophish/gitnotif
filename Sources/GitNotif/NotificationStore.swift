@@ -174,6 +174,38 @@ final class NotificationStore {
         }
     }
 
+    /// Fake data for the README screenshot (GITNOTIF_RENDER mode).
+    static func screenshotMock() -> NotificationStore {
+        func item(_ id: String, _ repo: String, _ type: String, _ title: String,
+                  _ reason: String, minutesAgo: Double, unread: Bool = true) -> GHNotification {
+            GHNotification(
+                id: id,
+                unread: unread,
+                reason: reason,
+                updatedAt: Date().addingTimeInterval(-minutesAgo * 60),
+                subject: .init(title: title, url: nil, latestCommentUrl: nil, type: type),
+                repository: .init(
+                    fullName: repo,
+                    htmlUrl: "https://github.com/\(repo)",
+                    owner: .init(login: "acme", avatarUrl: "")
+                )
+            )
+        }
+        let store = NotificationStore()
+        store.notifications = [
+            item("1", "acme/website", "PullRequest", "Add dark mode support to the settings page", "review_requested", minutesAgo: 12),
+            item("2", "acme/website", "PullRequest", "Fix flaky image cache tests", "state_change", minutesAgo: 84),
+            item("3", "acme/api", "Issue", "Rate limiter returns 500 under burst load", "mention", minutesAgo: 190),
+            item("4", "acme/api", "Release", "v2.4.0", "subscribed", minutesAgo: 1400, unread: false),
+        ]
+        store.prStates = [
+            Self.stateKey(store.notifications[0]): .open,
+            Self.stateKey(store.notifications[1]): .merged,
+        ]
+        store.state = .loaded
+        return store
+    }
+
     // MARK: - Actions
 
     /// Opening reads the thread but keeps it (dimmed) until marked done.

@@ -7,6 +7,7 @@ struct GitNotifApp: App {
     @NSApplicationDelegateAdaptor(StatusItemMenuDelegate.self) private var menuDelegate
 
     init() {
+        Screenshot.renderIfRequested()
         let store = NotificationStore()
         store.start()
         _store = State(initialValue: store)
